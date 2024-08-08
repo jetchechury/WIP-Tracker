@@ -1,19 +1,11 @@
 import config as c # type: ignore
 
 import mysql.connector
-from mysql.connector import Error
 import sshtunnel
 
 import pandas as pd
 
-import pytz
-from datetime import datetime, timedelta
-
-from flask import Flask, render_template, jsonify, request, redirect, url_for, session,send_from_directory
-
-# import warnings
-# warnings.filterwarnings("ignore")
-
+from flask import Flask, render_template, jsonify, request, session
 
 app = Flask(__name__)
 
@@ -25,7 +17,6 @@ tunnel = sshtunnel.SSHTunnelForwarder(
 tunnel.start()
 
 def accessDatabase(queryStatement=None, updateStatement=None, insertTup=None):
-    # try:
     connection = mysql.connector.connect(
         host = c.host,
         database = c.database,
@@ -60,23 +51,17 @@ def accessDatabase(queryStatement=None, updateStatement=None, insertTup=None):
                 df = pd.DataFrame(columns=listofCols)
             else:
                 df = pd.DataFrame(data)
-        completed = True
-    else:
-        pass
-        
-    # except Error as e:
-    #     print("Error while connecting to MySQL", e)
-    # finally:
-    #     try:
-    #         if connection.is_connected():
-    #             cursor.close()
-    #             connection.close()
-    #     except:
-    #         pass
-            
-    if queryStatement:
-        return df
 
+        cursor.close()
+        connection.close()
+
+        if queryStatement:
+            return df
+    
+    else:
+        print('Unable to establish SQL connection')
+
+            
 projectsQuery = """
  SELECT p.*
 ,cte.elapsedTime
@@ -89,7 +74,6 @@ LEFT JOIN(SELECT projectID
 ,MAX(sessionEnd) as mostRecentEnd FROM Sessions GROUP BY projectID) cte on cte.projectID = p.projectID
 
 """
-timeStampCols = ['mostRecentStart','mostRecentEnd','projectStartDatetime','projectEndDatetime','sessionStart','sessionEnd','Last Session']
 
 def sessionsTable(projectID):
     querySession = f"""
@@ -102,12 +86,13 @@ def sessionsTable(projectID):
     """
     sessions = accessDatabase(queryStatement=querySession)
     sessions = updateTimeCols(sessions)
-    sessions=dtColtoStr(sessions)
+    sessions = dtColtoStr(sessions)
 
     sessions2 = sessions[['sessionID','sessionStart','sessionEnd', 'Time']]
     sessions2.rename(columns={'sessionID':'ID','sessionStart':'Start','sessionEnd':'End'},inplace=True)
 
     return sessions2
+
 
 def rowCounterTable(projectID, rowCounterID=None):
     queryRowCt = f"""
@@ -131,12 +116,13 @@ def rowCounterTable(projectID, rowCounterID=None):
 
     rowCts = accessDatabase(queryStatement=queryRowCt)
     rowCts = updateTimeCols(rowCts)
-    rowCts=dtColtoStr(rowCts)
+    rowCts = dtColtoStr(rowCts)
 
     return rowCts
 
+timeStampCols = ['mostRecentStart','mostRecentEnd','projectStartDatetime','projectEndDatetime','sessionStart','sessionEnd','Last Session']
+
 def updateTimeCols(df):
-    
     for col in timeStampCols:
         try:
             df[col] = df[col].dt.tz_localize('UTC')
@@ -151,10 +137,6 @@ def dtColtoStr(df):
             df[col] = df[col].dt.strftime('%m/%d/%y %I:%M:%S %p')
         except:
             pass
-    # try:
-    #     df['elapsedTime'] = pd.to_datetime(df["elapsedTime"], unit='s').dt.strftime("%H H %M M %S S")
-    # except:
-    #     pass
     return df
 
 def convert_seconds(seconds):
@@ -178,30 +160,14 @@ def convert_seconds(seconds):
     
     return ' '.join(parts)
 
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-
-    print(session)
-    if username and password:
-        return jsonify({'success':True})
-    # if user:
-    #     session['user_id'] = user['userID']
-    #     return jsonify({'success': True})
-    else:
-        return jsonify({'success': False})
-
 @app.route('/')
 def home():
-    # if 'user_id' in session:
     df = accessDatabase(queryStatement=projectsQuery + "WHERE p.active = 1")
     
     df['Last Session'] = df[['mostRecentStart', 'mostRecentEnd']].max(axis=1)
     
-    df=updateTimeCols(df)
-    df=dtColtoStr(df)
+    df = updateTimeCols(df)
+    df = dtColtoStr(df)
 
     df2 = df.rename(columns={'projectID':'Project ID','projectName':'Name',
                         'projectDescription': 'Description', 'projectStartDatetime':'Start',
@@ -218,8 +184,6 @@ def home():
 
     df3.fillna('',inplace=True)
 
-    # df3.loc[df3['Timer Status']==0,'Timer Status']='OFF'
-    # df3.loc[df3['Timer Status']==1,'Timer Status']='ON'
     df3['Last Session'] = df3['Last Session'].astype(str).replace('NaT','')
 
     unfinishedProjs_df = df3.loc[df3['End']=='']
@@ -227,16 +191,9 @@ def home():
 
     finishedProjs_df = df3.loc[df3['End']!='']
     finishedProjs = finishedProjs_df.to_dict(orient='records')
+
     return render_template('home.html', projects1=unfinishedProjs, projects2=finishedProjs)
 
-    # else:
-    #     return redirect(url_for('login'))
-
-# @app.route('/')
-# def login_page():
-#     # return app.send_static_file('login.html')
-
-#     return render_template('login.html')
 
 @app.route('/project/newProjectCreate', methods=['POST'])
 def createNewProj():
@@ -246,13 +203,10 @@ def createNewProj():
     projName = data.get('projName')
     projDesc = data.get('projDesc')
 
-    print(userID,projName,projDesc)
     try:
         nextProjID = int(accessDatabase(queryStatement='SELECT projectID FROM Projects ORDER BY projectID desc LIMIT 1' ).iloc[0]['projectID']) + 1
     except:
         nextProjID = 1
-
-    print(nextProjID)
 
     insertNewProj = """ INSERT INTO Projects
     (projectID,userID,projectName,projectDescription,active)
@@ -261,34 +215,22 @@ def createNewProj():
     insertNewProjData = [(nextProjID, userID, projName, projDesc,True)]
     accessDatabase(insertTup=tuple((insertNewProj,insertNewProjData)))
 
-    print(data)
-
     projectInfoQuery = projectsQuery + f"WHERE p.projectID = {nextProjID}"   
 
     project = accessDatabase(queryStatement=projectInfoQuery)
     project = updateTimeCols(project)
-    project=dtColtoStr(project)
+    project = dtColtoStr(project)
 
-    if not project.empty:
-        project.loc[project['projectStartDatetime'].isnull(),['projectEndDatetime','projectStartDatetime']] = 'Not Started'
-        project_data = project.iloc[0].to_dict()
-
-        print(project_data)
-        sessionsData = sessionsTable(nextProjID).to_dict(orient='records')
-        print(sessionsData)
-
-
-        return jsonify(success=True, projectID=nextProjID)
+    return jsonify(success=True, projectID=nextProjID)
 
 
 @app.route('/project/<int:projectID>')
 def project_detail(projectID):
-    # Fetch project details from the database
     projectInfoQuery = projectsQuery + f"WHERE p.projectID = {projectID}"   
 
     project = accessDatabase(queryStatement=projectInfoQuery)
     project = updateTimeCols(project)
-    project=dtColtoStr(project)
+    project = dtColtoStr(project)
 
 
     if project.empty:
@@ -312,27 +254,21 @@ def project_detail(projectID):
     rowCounters['currentRow'] = rowCounters['rowNumber'].astype(int) + 1
     rowCounters.loc[rowCounters['stitchType'].isnull(), 'stitchType'] = ''
     rowCountersData = rowCounters.to_dict(orient='records')
-    print(rowCountersData)
 
     return render_template('project_detail.html', project=project_data, session=sessionsData,sessionsPres=sessionsPres, rowCtrs = rowCountersData, stitches=stitchTypeList)
     
 
 @app.route('/project/<int:projectID>/session/<sessionID>')
 def sessionDetail(sessionID, projectID):
-
-    print(sessionID)
-     # Fetch project details from the database
     projectInfoQuery = projectsQuery + f"WHERE p.projectID = {projectID}"   
 
     project = accessDatabase(queryStatement=projectInfoQuery)
     project = updateTimeCols(project)
-    project=dtColtoStr(project)
+    project = dtColtoStr(project)
 
     sessions = accessDatabase(queryStatement=f"""SELECT *, TIMESTAMPDIFF(SECOND, sessionStart, sessionEnd) as elapsedTime FROM Sessions WHERE sessionID ='{sessionID}' """)
     sessions = updateTimeCols(sessions)
-    sessions=dtColtoStr(sessions)
-
-    print(sessions)
+    sessions = dtColtoStr(sessions)
 
     if not project.empty:
         project.loc[project['projectEndDatetime'].isnull(),'projectEndDatetime'] = 'In Progress'
@@ -342,7 +278,6 @@ def sessionDetail(sessionID, projectID):
         sessions2.rename(columns={'sessionID':'ID','sessionStart':'Start','sessionEnd':'End'},inplace=True)
 
         sessionsData = sessions2.iloc[0].to_dict()
-        print(sessionsData)
 
         return render_template('session_detail.html', project=project_data, session=sessionsData)
     return "Project not found", 404
@@ -353,9 +288,9 @@ def start_timer(project_id):
     startTime = data.get('startTime')
     startTime2 = pd.Timestamp(startTime)
 
-    project = accessDatabase(f"SELECT projectStartDatetime FROM Projects WHERE projectID = {project_id}")
-     # Fetch session data
-    session = accessDatabase(queryStatement=f"SELECT * FROM Sessions WHERE projectID = {project_id} ORDER BY sessionStart desc")        
+    project = accessDatabase(queryStatement=f"SELECT projectStartDatetime FROM Projects WHERE projectID = {project_id}")
+
+    session = accessDatabase(queryStatement=f"SELECT * FROM Sessions WHERE projectID = {project_id} ORDER BY CAST(SUBSTRING_INDEX(sessionID , '-', -1) AS UNSIGNED) desc")        
 
     if not project.empty:
         # Create Session
@@ -386,13 +321,8 @@ def start_timer(project_id):
 
         project_data = updated_project.iloc[0].to_dict()
 
-        # print(project_data)
-        # projStart = project['projectStartDatetime'].iloc[0].isoformat()
-
-        # print(project_data)
+    
         return jsonify({"status": "success", "project": project_data, "sessionID":newSessionID}), 200
-
-        # return jsonify({"status": "success", "startTime": projStart}), 200
     
     return jsonify({"status": "error", "message": "Project not found"}), 404
 
@@ -405,11 +335,9 @@ def stop_timer(projectID):
     startTime = data.get('startTime')
     sessionID = data.get('sessionID')
 
-    # Convert stop_time from string to Timestamp
     stopTime2 = pd.Timestamp(stopTime)
     startTime2 = pd.Timestamp(startTime)
 
-    # Fetch project data
     updateSessions = f"""
     UPDATE Sessions
     SET sessionEnd = '{str(stopTime2)}'
@@ -419,19 +347,14 @@ def stop_timer(projectID):
     querySessions = f"SELECT * FROM Sessions WHERE sessionID = '{sessionID}' "
     
     sessionInfo = accessDatabase(updateStatement=updateSessions, queryStatement=querySessions)
-    print(sessionInfo)
 
-    # Fetch session data
     if not sessionInfo.empty:
     
         project_data = sessionInfo.iloc[0]
-
-        print(startTime2)
-        print(stopTime2)
       
-        timediff = (stopTime2 - startTime2).total_seconds()
-        print(timediff)
-        print(currentElapsedTime)
+        # timediff = (stopTime2 - startTime2).total_seconds()
+        # print(timediff)
+        # print(currentElapsedTime)
 
         updateProjects = f"""
         UPDATE Projects
@@ -449,10 +372,7 @@ def stop_timer(projectID):
 
         sessions_df = sessionsTable(projectID)
         sessions_df.fillna({'End': -1, 'Time': -1}, inplace=True)
-        sessionsData = sessions_df.to_dict(orient='records')
-
-        print(sessionsData)
-  
+        sessionsData = sessions_df.to_dict(orient='records')  
 
         return jsonify({"status": "success", "project": project_data, "session":sessionsData}), 200
     
@@ -469,9 +389,6 @@ def updateElapsedTime(projectID):
     stopTime2 = pd.Timestamp(stopTime)
     sessStart2 = pd.Timestamp(sessStart)
 
-    # Convert stop_time from string to Timestamp
-    # stop_time = pd.Timestamp(stopTime2).tz_convert('US/Central')
-    # try:
     if postType == 'activeTimer':
         update_query = f"""
             UPDATE Sessions
@@ -493,7 +410,7 @@ def updateElapsedTime(projectID):
             ,sessionStart = '{str(sessStart2)}'
             WHERE projectID = {projectID} and sessionID = '{sessionID}'
             """
-        print(update_query)
+
     updated_project = accessDatabase(updateStatement=update_query, queryStatement=projectsQuery + f"WHERE p.projectID = {projectID}")
 
     updated_project = updateTimeCols(updated_project)
@@ -506,22 +423,23 @@ def updateElapsedTime(projectID):
 
     if postType == 'updateSession':
         sessions_df2 = sessions_df.loc[sessions_df['ID']==sessionID]
-        sessionsData = sessions_df.iloc[0].to_dict()
+        sessionsData = sessions_df2.iloc[0].to_dict()
     else:
         sessionsData = sessions_df.to_dict(orient='records')
 
     return jsonify({"status": "success", "project": project_data, "session":sessionsData}), 200
-    # except:
-    #     return jsonify({"status": "error", "message": "Project not found"}), 404
 
 
 @app.route('/project/<int:projectID>/get_timer', methods=['GET'])
 def get_timer(projectID):
+    
     project = accessDatabase(queryStatement=projectsQuery + f"WHERE p.projectID = {projectID}")
+    
     if not project.empty:
         project_data = project.iloc[0].to_dict()
-        print(project_data)
+
         return jsonify({"status":"success", "project" :project_data}), 200
+    
     return jsonify({"status": "error", "message": "Project not found"}), 404
 
 
@@ -538,14 +456,12 @@ def compProj(projectID):
     
     updated_project = accessDatabase(updateStatement=updStatement, queryStatement=projectsQuery + f" WHERE p.projectID = {projectID}")
     updated_project = updateTimeCols(updated_project)
-    updated_project= dtColtoStr(updated_project)
+    updated_project = dtColtoStr(updated_project)
     updated_project.fillna(0, inplace=True)
 
     project_data = updated_project.iloc[0].to_dict()
+
     return jsonify({"status":"success", "project" :project_data}), 200
-
-
-    # return jsonify({"status": "error", "message": "Project not found"}), 404
 
 @app.route('/project/<int:projectID>/markProjInactive', methods=['POST'])
 def delProj(projectID):
@@ -561,10 +477,11 @@ def delProj(projectID):
     
     updated_project = accessDatabase(updateStatement=updStatement, queryStatement=projectsQuery + f" WHERE p.projectID = {projectID}")
     updated_project = updateTimeCols(updated_project)
-    updated_project= dtColtoStr(updated_project)
+    updated_project = dtColtoStr(updated_project)
     updated_project.fillna(0, inplace=True)
 
     project_data = updated_project.iloc[0].to_dict()
+
     return jsonify({"status":"success", "project" :project_data}), 200
 
 @app.route('/counter/add', methods=['POST'])
@@ -573,6 +490,7 @@ def add_counter():
     counter_name = data.get('counterName')
     starting_row = data.get('startingRow')
     projectID = data.get('projectID')
+    
     try:
         nextrowCtID = int(accessDatabase(queryStatement='SELECT rowCounterID FROM RowCounters ORDER BY rowCounterID desc LIMIT 1' ).iloc[0]['rowCounterID']) + 1
     except:

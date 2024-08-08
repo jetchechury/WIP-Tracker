@@ -57,9 +57,6 @@ function updateTimer() {
 
 function startTimer(projectID) {
     document.getElementById('toggleButton').style.visibility = 'hidden'
-    // document.getElementById('completeProject').style.visibility = 'hidden'
-    // document.getElementById('addcounter').style.visibility = 'hidden'
-    // document.getElementById('toggleButton').innerText = 'Starting Timer';
     startTime = Date.now();
     fetch(`/project/${projectID}/start_timer`, {
         method: 'POST',
@@ -120,8 +117,6 @@ function stopTimer(projectID) {
                 document.getElementById('timer').innerText = formatTime(localElapsedTime);
                 document.getElementById('toggleButton').innerText = 'Start';
                 document.getElementById('toggleButton').style.visibility = 'visible'
-                // document.getElementById('completeProject').style.visibility = 'visible'
-                // document.getElementById('addcounter').style.visibility = 'visible'
                 document.getElementById('sessionID').innerText = '';
                 document.getElementById('lastAction').innerText = formatDate(new Date(endTime))
                 updateProjectDetails(data.project);
@@ -277,12 +272,6 @@ function updateSession() {
                 document.getElementById('session-start').innerText = data.session['Start']
                 document.getElementById('session-end').innerText = data.session['End']
                 document.getElementById('elapsedTime').innerText = formatTime2(data.project['elapsedTime'])
-                // isRunning = false;
-                // localElapsedTime = 0; // Reset the local elapsed time
-                // document.getElementById('timer').innerText = formatTime(localElapsedTime);
-                // document.getElementById('toggleButton').innerText = 'Start';
-                // updateProjectDetails(data.project);
-                // updateSessionTable(data.session,projectID);
             }
         });
 };
@@ -304,8 +293,7 @@ function completeProject() {
         .then(data => {
             if (data.status === 'success') {
                 window.location.reload();
-                // updateProjectDetails(data.project);
-                // compbtnelm.style.visibility = 'hidden'
+
             }
         });
 };
@@ -368,9 +356,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-
-    // timerOnOff()
-
 });
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -392,8 +377,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const defaultValue = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
             cell.setAttribute('value', defaultValue)
-            // document.getElementById('datetime').value = defaultValue;
-
 
         })
     };
@@ -473,21 +456,6 @@ function formatDate(dateStr) {
 
     return `${formattedDate} ${formattedTime}`;
 };
-
-// function formatDatetimeElements() {
-//     const elements = document.querySelectorAll('.datetime');
-//     elements.forEach(element => {
-//         const dateStr = element.getAttribute('data-date');
-//         if (dateStr) {
-//             const formattedDate = formatDate(dateStr);
-//             element.textContent = formattedDate;
-//         }
-//     });
-// }
-
-// // Run the function when the DOM is fully loaded
-// document.addEventListener('DOMContentLoaded', formatDatetimeElements);
-
 
 document.addEventListener('DOMContentLoaded', function () {
     timerOnOff()
@@ -707,9 +675,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const counterDisplay = document.querySelector(`.counterDisplay[data-rowCtID='${rowCtID}']`);
             const sessionID = document.getElementById('sessionID').textContent;
             let counterValue = parseInt(counterDisplay.innerText, 10);
-            console.log("Counter Value", counterValue)
-            console.log("New Counter Value", counterValue + 1)
-            console.log('SessionID',sessionID)
             const actionDT = new Date();
             updateCounter(rowCtID, counterValue, '+', actionDT,sessionID);
         });
@@ -719,7 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', (event) => {
             const rowCtID = event.target.getAttribute('data-rowCtID');
             const counterDisplay = document.querySelector(`.counterDisplay[data-rowCtID='${rowCtID}']`);
-            const sessionID = document.getElementById('sessionID').value;
+            const sessionID = document.getElementById('sessionID').textContent;
             let counterValue = parseInt(counterDisplay.innerText, 10);
             const actionDT = new Date();
             updateCounter(rowCtID, counterValue,'-', actionDT,sessionID);
@@ -804,12 +769,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     observer.observe(runningElement, { attributes: true });
-
-    // // Event listener to toggle the data-off attribute for demonstration purposes
-    // runningElement.addEventListener('click', () => {
-    //     const isOff = runningElement.getAttribute('data-onoff') === '0';
-    //     runningElement.setAttribute('data-onoff', !isOff);
-    // });
 }
 });
 
