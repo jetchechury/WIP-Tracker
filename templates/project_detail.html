@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Details</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+
+</head>
+
+<body>
+    <h2>{{project.projectName}}</h2>
+    <p class="link-cell">{{project.projectDescription}}<br>
+    <table border="1" class="infoTable"
+        style="border: 1px solid black;border-collapse: collapse;padding-top: 2px;padding-bottom: 2px;padding-left: 10px;padding-right: 10px;">
+        <tbody>
+            <tr>
+                <td>Start Date:</td>
+                <td class="datetime" id="projectStartDatetime" data-date="{{project.projectStartDatetime}}">
+                    {{project.projectStartDatetime}}</td>
+            </tr>
+            <tr>
+                <td>Completion Date:</td>
+                <td class="datetime" id="projectEndDatetime" data-date="{{project.projectEndDatetime}}">
+                    {{project.projectEndDatetime}}</td>
+            </tr>
+            <tr>
+                <td>Duration:</td>
+                <td class="elapsedTime" id="elapsedTime" data-seconds="{{project.elapsedTime}}">{{project.elapsedTime}}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <hr>
+    <table>
+        <tr>
+            <th columnspan="2" style="font-size: 20px;"><b>Timer</b></th>
+        </tr>
+        <tr>
+            <td style="font-size: 20px;"><b><span id="timer">00:00:00</span></b></td>
+
+            <td> <button style="height:30px;width:50px" id="toggleButton" data-project-id="{{ project.projectID }}"
+                    data-completion-date="{{ project.projectEndDatetime }}" onclick="toggleTimer()">Start</button></td>
+        </tr>
+        <tr style="font-size: 12px;">
+            <td>Session ID:</td>
+            <td id="sessionID"></td>
+        </tr>
+        <tr style="font-size: 12px;">
+            <td>Last Action:</td>
+            <td class="datetime" id="lastAction" data-date="{{project.mostRecentEnd}}">{{project.mostRecentEnd}}</td>
+        </tr>
+        <tr style="font-size: 12px;">
+            <td>Timer Status:</td>
+            <td class="timerStat" id="running" data-onoff="{{project.running}}">{{project.running}}</td>
+        </tr>
+
+    </table>
+    <hr>
+    <table>
+        <tr>
+            <th columnspan="2" style="font-size: 20px;"><b>Row Counters</b></th>
+        </tr>
+        <tr>
+            <td columnspan="2" style="font-size: 15px;"><button style="height:30px;width:60spx" class="actionbutton timeroff" id="addcounter"
+                    data-project-id="{{ project.projectID }}">+ Add Counter</button></td>
+        </tr>
+    </table>
+    <div id="tempFormContainer"></div><br>
+    <div class="countercontainer">
+        {% for ctr in rowCtrs %}
+
+        <label for="counterDisplay-{{ctr.rowCounterID}}"><strong>{{ ctr.name }}</strong></label><br>
+        <div class="d-flex align-items-center">
+            <div class="p-2">
+                <button class="btn btn-primary actionbutton timeron counterButton-dec" data-rowCtID="{{ctr.rowCounterID}}">-</button>
+            </div>
+            <div class="p-2">
+                <label for="counterDisplay-{{ctr.rowCounterID}}">Current Row:</label>
+            </div>
+            <div class="p-2">
+                <span class="counterDisplay" id="counterDisplay-{{ctr.rowCounterID}}" data-rowCtID="{{ctr.rowCounterID}}"><strong>{{ctr.currentRow}}</strong></span>
+            </div>
+            <div class="p-2">
+                <button class="btn btn-primary actionbutton timeron counterButton-inc" data-rowCtID="{{ctr.rowCounterID}}">+</button>
+            </div>
+        </div>
+
+        <label class="stitches" for="stitchType-{{ctr.rowCounterID}}">Stitch Type:</label>
+            <input list="stitchTypes" class="stitches" id="stitchType-{{ctr.rowCounterID}}" data-rowCtID="{{ctr.rowCounterID}}" name="stitchType" value="{{ctr.stitchType}}" required>
+        <datalist id="stitchTypes" >
+            {%for i in stitches%}
+            <option value="{{i}}">
+            {%endfor%}
+        </datalist><br>
+
+            <label class="counternotes" for="counternotes-{{ctr.rowCounterID}}">Row Notes:</label>
+            <input type="text" class="counternotes"  id="counternotes-{{ctr.rowCounterID}}" data-rowCtID="{{ctr.rowCounterID}}"><br><br>
+
+        {% endfor %}
+
+    </div>
+    <br><br>
+    <button style="height:30px;width:60spx" class="actionbutton timeroff" id="completeProject" data-project-id="{{ project.projectID }}"
+        data-completion-date="{{ project.projectEndDatetime }}" onclick="completeProject()">Mark Project Complete</button>
+
+
+
+    <br><br><br><a href="{{ url_for('home') }}">Back to Home</a>
+    </p>
+
+    {% if sessionsPres == 'Y' %}
+    <table class="table table-bordered tablesorter">
+        <thead>
+            <tr>
+                <th columnspan="2" style="font-size: 20px;"><b>Sessions</b></th>
+            </tr>
+            <tr>
+                {% for column in session[0].keys() %}
+                <th>{{ column }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody id="sessionTableBody">
+            {% for sess in session %}
+            <tr>
+                {% for key, value in sess.items() %}
+                {% if key == 'ID' %}
+                <td><a
+                        href="{{ url_for('sessionDetail', sessionID=sess['ID'], projectID=project.projectID) }}">{{value}}</a>
+                </td>
+                {% elif key == 'Time' %}
+                <td class="elapsedTime" data-seconds="{{sess.Time}}">{{value}}</td>
+                {% elif key== 'Start' %}
+                <td class="datetime" data-date="{{value}}">{{value}}</td>
+                {% elif key== 'End' %}
+                <td class="datetime" data-date="{{value}}">{{value}}</td>
+                {% else %}
+                <td>{{ value }}</td>
+                {% endif %}
+                {% endfor %}
+
+            </tr>
+        </tbody>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>No Sessions</p>
+    <table class="table table-bordered tablesorter">
+        <thead>
+            <tr>
+                <th columnspan="2" style="font-size: 20px;"><b>Sessions</b></th>
+            </tr>
+            <tr>
+                {% for column in session %}
+                <th>{{ column }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody id="sessionTableBody">
+            <tr></tr>
+        </tbody>
+
+    </table>
+    {% endif %}
+
+    <br><br>
+    <button style="height:30px;width:60spx" class="actionbutton timeroff" id="deleteProject" data-project-id="{{ project.projectID }}"
+        data-completion-date="{{ project.projectEndDatetime }}" onclick="deleteProject()">Delete Project</button>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <!-- Include Bootstrap CSS (replace the URL with the actual Bootstrap CSS URL) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.26.1/js/jquery.tablesorter.js"></script>
+</body>
+
+</html>

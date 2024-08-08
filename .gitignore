@@ -1,0 +1,18 @@
+config.py
+
+# Ignore temporary files
+*.tmp
+*.swp
+*.log
+*.bak
+*.old
+*.orig
+*.DS_Store
+
+# Ignore directories
+.cache/
+.temp/
+
+# Ignore macOS resource fork files
+._*
+

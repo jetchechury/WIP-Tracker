@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projects</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+</head>
+
+<body>
+    <h1>Projects</h1>
+    <div class="g-signin2" data-onsuccess="onSignIn"></div>
+    <button style="height:30px;width:60spx" id="addproject">+ Add Project</button></td>
+    <div id="tempFormContainerAddProj"></div>
+
+    <h2>Projects In Progress</h2>
+    {% if projects1 %}
+        <table border="1">
+            <thead>
+                <tr>
+                    {% for column in projects1[0].keys() %}
+                    <th>{{ column }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects1 %}
+                <tr>
+                    {% for key, value in project.items() %}
+                        {% if key == 'Name' %}
+                            <td><a href="{{ url_for('project_detail', projectID=project['Project ID']) }}">{{value}}</a></td>
+                        {% elif key == 'Total Time' %}
+                            <td class="elapsedTime" data-seconds="{{value}}">{{value}}</td>
+                        {% elif key == 'Timer Status' %}
+                            <td class="timerStat" data-onoff="{{value}}">{{value}}</td>
+                        {% else %}
+                            <td class="link-cell">{{ value }}</td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No WIPs</p>
+    {% endif %}
+
+    <h2>Completed Projects</h2>
+    {% if projects2 %}
+        <table border="1">
+            <thead>
+                <tr>
+                    {% for column in projects2[0].keys() %}
+                    <th>{{ column }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects2 %}
+                <tr>
+                    {% for key, value in project.items() %}
+                    {% if key == 'Name' %}
+                        <td><a href="{{ url_for('project_detail', projectID=project['Project ID']) }}">{{value}}</a></td>
+                    {% elif key == 'Total Time' %}
+                        <td class="elapsedTime" data-seconds="{{value}}">{{value}}</td>
+                    {% elif key == 'Timer Status' %}
+                        <td class="timerStat" data-onoff="{{value}}">{{value}}</td>
+                    {% else %}
+                        <td class="link-cell">{{ value }}</td>
+                    {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No Completed Projects</p>
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+
+</html>
