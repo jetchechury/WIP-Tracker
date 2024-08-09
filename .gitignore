@@ -16,5 +16,5 @@ config.py
 # Ignore macOS resource fork files
 ._*
 
- __pycache__/
+ __pycache__
 
